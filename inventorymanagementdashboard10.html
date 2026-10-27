@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Inventory Management Agent Dashboard</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom subtle pulse and scroll styling */
+    .pulse-badge {
+      animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .85; transform: scale(1.02); }
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.3);
+      border-radius: 4px;
+    }
+    /* Clean number input appearance */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-6 min-h-screen">
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Top Header -->
+    <header class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center justify-center p-2 rounded-xl bg-blue-500/10 text-blue-500 font-bold">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </span>
+          <div>
+            <h1 class="text-xl md:text-2xl font-bold tracking-tight">Smart Inventory Management Agent</h1>
+            <p class="text-sm text-[var(--muted-foreground)]">Autonomous Sense $\rightarrow$ Reason $\rightarrow$ Multi-Actuator (Reorder + Email Alert)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Status & Controls -->
+      <div class="flex flex-wrap items-center gap-3">
+        <button onclick="openEmailSettingsModal()" class="px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold flex items-center gap-1.5 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span>Email Alert: <b id="headerEmailRecipient" class="font-mono">manager@warehouse.com</b></span>
+        </button>
+        <button id="toggleSimBtn" onclick="toggleAutoSimulation()" class="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--card)] text-[var(--foreground)] transition-all flex items-center gap-2 shadow-xs">
+          <span id="simDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="simText">Start Auto Warehouse Ticks</span>
+        </button>
+        <button onclick="resetToDefaults()" class="px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] hover:bg-[var(--content)] text-[var(--muted-foreground)] transition-all">
+          Reset Data
+        </button>
+      </div>
+    </header>
+
+    <!-- Key Metrics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 shadow-xs">
+        <span class="text-xs text-[var(--muted-foreground)] font-medium">Total Monitored SKUs</span>
+        <div class="text-2xl font-bold mt-1" id="metricTotalSKUs">5</div>
+        <div class="text-xs text-blue-500 mt-1 flex items-center gap-1 font-medium">
+          <span>Active Telemetry</span>
+        </div>
+      </div>
+
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 shadow-xs">
+        <span class="text-xs text-[var(--muted-foreground)] font-medium">Critical Reorders Triggered</span>
+        <div class="text-2xl font-bold mt-1 text-rose-500" id="metricReordersTriggered">0</div>
+        <div class="text-xs text-[var(--muted-foreground)] mt-1">Autonomous Actuations</div>
+      </div>
+
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 shadow-xs">
+        <span class="text-xs text-[var(--muted-foreground)] font-medium">Email Alerts Dispatched</span>
+        <div class="text-2xl font-bold mt-1 text-purple-500" id="metricEmailsSent">0</div>
+        <div class="text-xs text-[var(--muted-foreground)] mt-1">Direct to Manager Inbox</div>
+      </div>
+
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 shadow-xs">
+        <span class="text-xs text-[var(--muted-foreground)] font-medium">System Compliance</span>
+        <div class="text-2xl font-bold mt-1 text-emerald-500" id="metricHealthyPct">100%</div>
+        <div class="text-xs text-[var(--muted-foreground)] mt-1">Stock balance ratio</div>
+      </div>
+    </div>
+
+    <!-- Main Workspace Grid: Simulator & Live Agent Engine -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Interactive Agent Evaluation Chamber (Left Column - 5 cols) -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+            <div>
+              <h2 class="font-bold text-base">Agent Reflex Chamber</h2>
+              <p class="text-xs text-[var(--muted-foreground)]">Test sensor input against minimum stock logic</p>
+            </div>
+            <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-blue-500/10 text-blue-500 uppercase tracking-wider">Interactive Mode</span>
+          </div>
+
+          <!-- Item Selector -->
+          <div>
+            <label class="block text-xs font-semibold text-[var(--muted-foreground)] mb-1">Select SKU / Item</label>
+            <select id="simItemSelect" onchange="syncSimulatorWithItem()" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Stock Input Slider & Number -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <label class="font-semibold text-[var(--muted-foreground)]">Perceived Stock Level (Sensor)</label>
+              <span id="stockValueBadge" class="font-mono font-bold text-sm px-2 py-0.5 rounded bg-[var(--content)] border border-[var(--border)]">15</span>
+            </div>
+            <input type="range" id="simStockSlider" min="0" max="100" value="15" oninput="updateSimulatorLive()" class="w-full accent-blue-500 cursor-pointer">
+            <div class="flex gap-2">
+              <button onclick="adjustStock(-5)" class="flex-1 py-1 text-xs border border-[var(--border)] rounded-lg hover:bg-[var(--content)] transition-all">-5 Units</button>
+              <button onclick="adjustStock(-1)" class="flex-1 py-1 text-xs border border-[var(--border)] rounded-lg hover:bg-[var(--content)] transition-all">-1 Unit</button>
+              <button onclick="adjustStock(1)" class="flex-1 py-1 text-xs border border-[var(--border)] rounded-lg hover:bg-[var(--content)] transition-all">+1 Unit</button>
+              <button onclick="adjustStock(5)" class="flex-1 py-1 text-xs border border-[var(--border)] rounded-lg hover:bg-[var(--content)] transition-all">+5 Units</button>
+            </div>
+          </div>
+
+          <!-- Configurable Minimum Stock Threshold Slider -->
+          <div class="space-y-2 pt-2 border-t border-[var(--border)]">
+            <div class="flex justify-between items-center text-xs">
+              <label class="font-semibold text-[var(--muted-foreground)]">Minimum Stock Value (Threshold \(\tau\))</label>
+              <span id="thresholdValueBadge" class="font-mono font-bold text-sm px-2 py-0.5 rounded bg-[var(--content)] border border-[var(--border)] text-amber-500">20</span>
+            </div>
+            <input type="range" id="simThresholdSlider" min="0" max="80" value="20" oninput="onSimulatorThresholdChange()" class="w-full accent-amber-500 cursor-pointer">
+          </div>
+
+          <!-- Live Decision Preview Card -->
+          <div id="liveDecisionCard" class="p-4 rounded-xl border transition-all duration-200 bg-rose-500/10 border-rose-500/30 text-rose-500 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider">Agent Reflex State</span>
+              <span id="liveDecisionBadge" class="text-xs font-black px-2 py-0.5 rounded-full bg-rose-500 text-white pulse-badge">REORDER</span>
+            </div>
+            <p id="liveReasoningText" class="text-xs font-medium">Stock (15) &lt; Min Stock (20) &rarr; Replenishment &amp; Email Alert required.</p>
+            <div id="liveActuatorsPreview" class="pt-2 border-t border-rose-500/20 text-[11px] space-y-1 font-mono">
+              <div class="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                <span>📦 Actuator 1:</span>
+                <span>Supplier Order Dispatch</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                <span>📧 Actuator 2:</span>
+                <span id="previewEmailTarget">Email Alert to manager@warehouse.com</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actuator Execution Button -->
+          <button onclick="executeAgentCycle()" class="w-full py-2.5 rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Execute Agent Decision &amp; Dispatch Actuators
+          </button>
+        </div>
+
+        <!-- Agent Architecture Info Card -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm text-xs space-y-2.5">
+          <h3 class="font-bold text-sm flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            Multi-Actuator Agent Flow
+          </h3>
+          <p class="text-[var(--muted-foreground)] leading-relaxed">
+            When sensor input violates the safety invariant (\( \text{Stock} < \text{Threshold} \)), the agent executes dual actuators: initiating a supply chain reorder and dispatching an email alert to the warehouse manager.
+          </p>
+          <div class="grid grid-cols-3 gap-2 text-center pt-2 font-mono">
+            <div class="p-2 rounded-lg bg-[var(--content)] border border-[var(--border)]">
+              <span class="text-[10px] text-[var(--muted-foreground)] block">Sensor</span>
+              <span class="font-semibold text-blue-500">get_stock()</span>
+            </div>
+            <div class="p-2 rounded-lg bg-[var(--content)] border border-[var(--border)]">
+              <span class="text-[10px] text-[var(--muted-foreground)] block">Reasoning</span>
+              <span class="font-semibold text-amber-500">check_inv()</span>
+            </div>
+            <div class="p-2 rounded-lg bg-[var(--content)] border border-[var(--border)]">
+              <span class="text-[10px] text-[var(--muted-foreground)] block">Actuators</span>
+              <span class="font-semibold text-purple-500">reorder + mail</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory Table & Live Actuator Stream (Right Column - 7 cols) -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- Inventory List Table Card -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
+            <div>
+              <h2 class="font-bold text-base">Warehouse Stock Telemetry</h2>
+              <p class="text-xs text-[var(--muted-foreground)]">Directly enter minimum stock values in the table below</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openAddItemModal()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 transition-all flex items-center gap-1">
+                + Add SKU
+              </button>
+            </div>
+          </div>
+
+          <!-- Table with Editable Minimum Stock Value Column -->
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+                  <th class="py-2.5 px-3 font-semibold">SKU &amp; Item</th>
+                  <th class="py-2.5 px-3 font-semibold">Category</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Current Stock</th>
+                  <th class="py-2.5 px-3 font-semibold text-center bg-amber-500/5 text-amber-600 dark:text-amber-400 border-x border-amber-500/10">
+                    Min Stock Value (Editable)
+                  </th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Decision State</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">Quick Control</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody" class="divide-y divide-[var(--border)]">
+                <!-- Dynamically populated items with editable input column -->
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[11px] text-[var(--muted-foreground)] italic text-right">
+            Tip: Lowering stock or raising Min Stock below current value immediately fires an autonomous reorder &amp; email alert.
+          </p>
+        </div>
+
+        <!-- Live Actuator Event Feed -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between border-b border-[var(--border)] pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h3 class="font-bold text-sm">Autonomous Actuator Dispatch Log</h3>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="openEmailOutboxModal()" class="text-[11px] text-purple-500 hover:underline flex items-center gap-1 font-semibold">
+                <span>View Email Outbox (<span id="outboxCount">0</span>)</span>
+              </button>
+              <button onclick="clearLogs()" class="text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline">Clear Log</button>
+            </div>
+          </div>
+
+          <div id="actuatorLogs" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+            <!-- Dynamically populated event cards -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Settings Modal -->
+  <div id="emailSettingsModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 max-w-md w-full space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Email Alert Configuration
+        </h3>
+        <button onclick="closeEmailSettingsModal()" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-[var(--muted-foreground)] mb-1">Warehouse Manager Email Address</label>
+          <input type="email" id="settingManagerEmail" value="manager@warehouse.com" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono">
+          <p class="text-[11px] text-[var(--muted-foreground)] mt-1">Alerts will be dispatched whenever any SKU stock drops below its minimum threshold.</p>
+        </div>
+        <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-500 space-y-1">
+          <span class="font-bold">Autonomous Trigger Policy:</span>
+          <p class="text-[11px] leading-relaxed">
+            If Stock &lt; Min Stock Value (Default: 20 units) &rarr; Send immediate high-priority warning message with timestamp and SKU details.
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2 justify-end pt-2 border-t border-[var(--border)]">
+        <button onclick="closeEmailSettingsModal()" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] hover:bg-[var(--content)]">Close</button>
+        <button onclick="saveEmailSettings()" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Inspector Modal -->
+  <div id="emailViewerModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 max-w-lg w-full space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
+        <div class="flex items-center gap-2">
+          <span class="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 font-bold">📧</span>
+          <div>
+            <h3 class="font-bold text-sm">Dispatched Email Message</h3>
+            <p class="text-[10px] text-[var(--muted-foreground)] font-mono" id="viewerEmailDate"></p>
+          </div>
+        </div>
+        <button onclick="closeEmailViewerModal()" class="text-lg font-bold text-[var(--muted-foreground)] hover:text-[var(--foreground)]">&times;</button>
+      </div>
+
+      <div class="space-y-2 text-xs font-mono bg-[var(--background)] p-3.5 rounded-xl border border-[var(--border)]">
+        <div class="text-[var(--muted-foreground)]"><b>To:</b> <span id="viewerEmailTo" class="text-blue-500"></span></div>
+        <div class="text-[var(--muted-foreground)]"><b>Subject:</b> <span id="viewerEmailSubject" class="text-[var(--foreground)] font-bold"></span></div>
+        <hr class="border-[var(--border)] my-2">
+        <pre id="viewerEmailBody" class="whitespace-pre-wrap text-[11px] text-[var(--foreground)] font-mono leading-relaxed"></pre>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeEmailViewerModal()" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--content)] hover:bg-[var(--background)] border border-[var(--border)]">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Outbox List Modal -->
+  <div id="emailOutboxModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 max-w-xl w-full space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <span>📧 Manager Alert Outbox</span>
+        </h3>
+        <button onclick="closeEmailOutboxModal()" class="text-lg font-bold text-[var(--muted-foreground)] hover:text-[var(--foreground)]">&times;</button>
+      </div>
+
+      <div id="outboxListContainer" class="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+        <!-- Dynamically rendered email list -->
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-[var(--border)]">
+        <button onclick="closeEmailOutboxModal()" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--content)] hover:bg-[var(--background)] border border-[var(--border)]">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Item Modal -->
+  <div id="addItemModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl">
+      <h3 class="font-bold text-base">Add New SKU to Inventory</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-[var(--muted-foreground)] mb-1">Item Name</label>
+          <input type="text" id="newItemName" placeholder="e.g., Microcontroller ESP32" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block font-semibold text-[var(--muted-foreground)] mb-1">Category</label>
+          <input type="text" id="newItemCategory" placeholder="e.g., Electronics" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-[var(--muted-foreground)] mb-1">Initial Stock</label>
+            <input type="number" id="newItemStock" min="0" value="25" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block font-semibold text-amber-500 mb-1">Minimum Stock Value</label>
+            <input type="number" id="newItemThreshold" min="0" value="20" class="w-full bg-[var(--background)] border border-amber-500/40 rounded-lg px-3 py-2 text-sm">
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2 justify-end pt-2 border-t border-[var(--border)]">
+        <button onclick="closeAddItemModal()" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] hover:bg-[var(--content)]">Cancel</button>
+        <button onclick="confirmAddItem()" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700">Add SKU</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initial State Dataset
+    const defaultInventory = [
+      { id: "SKU-101", name: "High-Torque Servos", category: "Robotics", stock: 15, threshold: 20 },
+      { id: "SKU-102", name: "LiPo Batteries 2200mAh", category: "Power", stock: 45, threshold: 25 },
+      { id: "SKU-103", name: "Carbon Fiber Rods", category: "Materials", stock: 8, threshold: 15 },
+      { id: "SKU-104", name: "Telemetry Modules 915MHz", category: "Comms", stock: 32, threshold: 20 },
+      { id: "SKU-105", name: "Optical Flow Sensors", category: "Sensors", stock: 18, threshold: 20 }
+    ];
+
+    let inventory = JSON.parse(localStorage.getItem("sim_inventory")) || [...defaultInventory];
+    let managerEmail = localStorage.getItem("sim_manager_email") || "manager@warehouse.com";
+    let selectedSku = inventory[0].id;
+    let autoSimInterval = null;
+    let totalReordersCount = parseInt(localStorage.getItem("sim_reorders_count")) || 0;
+    let totalEmailsSentCount = parseInt(localStorage.getItem("sim_emails_count")) || 0;
+    let actuatorLogsList = JSON.parse(localStorage.getItem("sim_logs")) || [];
+    let sentEmailsList = JSON.parse(localStorage.getItem("sim_sent_emails")) || [];
+
+    // Helper: Formatted Timestamp
+    function getFormattedTimestamp() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+
+    // Save State
+    function persistState() {
+      localStorage.setItem("sim_inventory", JSON.stringify(inventory));
+      localStorage.setItem("sim_manager_email", managerEmail);
+      localStorage.setItem("sim_reorders_count", totalReordersCount.toString());
+      localStorage.setItem("sim_emails_count", totalEmailsSentCount.toString());
+      localStorage.setItem("sim_logs", JSON.stringify(actuatorLogsList));
+      localStorage.setItem("sim_sent_emails", JSON.stringify(sentEmailsList));
+    }
+
+    // Reset Defaults
+    function resetToDefaults() {
+      inventory = JSON.parse(JSON.stringify(defaultInventory));
+      selectedSku = inventory[0].id;
+      managerEmail = "manager@warehouse.com";
+      totalReordersCount = 0;
+      totalEmailsSentCount = 0;
+      actuatorLogsList = [];
+      sentEmailsList = [];
+      persistState();
+      initUI();
+      logEvent("SYSTEM_RESET", "Inventory telemetry, email logs, and thresholds reset to defaults.", "INFO");
+    }
+
+    // Core Agent Logic (Sense -> Reason -> Multi-Actuator)
+    function agentEvaluate(stock, threshold) {
+      if (stock < threshold) {
+        return {
+          decision: "REORDER",
+          action: "Reorder & Email Alert triggered",
+          isReorder: true,
+          reorderQty: Math.max(threshold * 2 - stock, 10),
+          reasoning: `Stock (${stock}) < Min Stock (${threshold}) → Low stock alert sent to ${managerEmail} & replenishment dispatched.`
+        };
+      } else {
+        return {
+          decision: "WAIT",
+          action: "No reorder required",
+          isReorder: false,
+          reorderQty: 0,
+          reasoning: `Stock (${stock}) ≥ Min Stock (${threshold}) → Inventory buffer healthy.`
+        };
+      }
+    }
+
+    // Create and record Email Alert Dispatch
+    function dispatchEmailAlert(item, stock, threshold, timestamp) {
+      totalEmailsSentCount++;
+      const subject = `[CRITICAL ALERT] Low Stock Warning: ${item.name} (${item.id})`;
+      const body = `WAREHOUSE INVENTORY AUTOMATED ALERT\n` +
+                   `====================================\n` +
+                   `Alert Type:       Stock Below Minimum Threshold\n` +
+                   `SKU Code:         ${item.id}\n` +
+                   `Item Name:        ${item.name}\n` +
+                   `Current Stock:    ${stock} units\n` +
+                   `Safety Threshold: ${threshold} units\n` +
+                   `Action Taken:     Autonomous Reorder Batch Dispatched (+${Math.max(threshold * 2 - stock, 10)} units)\n` +
+                   `Timestamp:        ${timestamp}\n` +
+                   `Recipient:        ${managerEmail}\n` +
+                   `====================================\n` +
+                   `Please verify shipment arrival and inventory buffer levels.`;
+
+      const emailRecord = {
+        id: `EMAIL-${Date.now()}`,
+        to: managerEmail,
+        subject: subject,
+        body: body,
+        timestamp: timestamp,
+        sku: item.id,
+        itemName: item.name
+      };
+
+      sentEmailsList.unshift(emailRecord);
+      if (sentEmailsList.length > 50) sentEmailsList.pop();
+
+      return emailRecord;
+    }
+
+    // UI Initializer
+    function initUI() {
+      document.getElementById("headerEmailRecipient").textContent = managerEmail;
+      document.getElementById("previewEmailTarget").textContent = `Email Alert to ${managerEmail}`;
+      populateItemSelect();
+      renderInventoryTable();
+      syncSimulatorWithItem();
+      renderLogs();
+      updateMetrics();
+    }
+
+    // Populate Selector
+    function populateItemSelect() {
+      const select = document.getElementById("simItemSelect");
+      select.innerHTML = "";
+      inventory.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = `${item.id} - ${item.name} (Stock: ${item.stock}, Min: ${item.threshold})`;
+        if (item.id === selectedSku) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    // Sync Simulator Controls with Selected Item
+    function syncSimulatorWithItem() {
+      const select = document.getElementById("simItemSelect");
+      selectedSku = select.value;
+      const item = inventory.find(i => i.id === selectedSku);
+      if (!item) return;
+
+      document.getElementById("simStockSlider").value = item.stock;
+      document.getElementById("stockValueBadge").textContent = item.stock;
+      document.getElementById("simThresholdSlider").value = item.threshold;
+      document.getElementById("thresholdValueBadge").textContent = item.threshold;
+
+      updateSimulatorLive();
+    }
+
+    // Live update of the Simulator preview
+    function updateSimulatorLive() {
+      const stock = parseInt(document.getElementById("simStockSlider").value);
+      const threshold = parseInt(document.getElementById("simThresholdSlider").value);
+
+      document.getElementById("stockValueBadge").textContent = stock;
+      document.getElementById("thresholdValueBadge").textContent = threshold;
+
+      const evalResult = agentEvaluate(stock, threshold);
+      const card = document.getElementById("liveDecisionCard");
+      const badge = document.getElementById("liveDecisionBadge");
+      const text = document.getElementById("liveReasoningText");
+      const preview = document.getElementById("liveActuatorsPreview");
+
+      if (evalResult.isReorder) {
+        card.className = "p-4 rounded-xl border transition-all duration-200 bg-rose-500/10 border-rose-500/30 text-rose-500 space-y-2";
+        badge.className = "text-xs font-black px-2 py-0.5 rounded-full bg-rose-500 text-white pulse-badge";
+        badge.textContent = "REORDER";
+        preview.style.display = "block";
+      } else {
+        card.className = "p-4 rounded-xl border transition-all duration-200 bg-emerald-500/10 border-emerald-500/30 text-emerald-500 space-y-2";
+        badge.className = "text-xs font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white";
+        badge.textContent = "WAIT";
+        preview.style.display = "none";
+      }
+      text.textContent = evalResult.reasoning;
+    }
+
+    function onSimulatorThresholdChange() {
+      const threshold = parseInt(document.getElementById("simThresholdSlider").value);
+      const item = inventory.find(i => i.id === selectedSku);
+      if (item) {
+        item.threshold = threshold;
+        persistState();
+        renderInventoryTable();
+        populateItemSelect();
+        updateMetrics();
+      }
+      updateSimulatorLive();
+    }
+
+    function adjustStock(delta) {
+      const slider = document.getElementById("simStockSlider");
+      let val = parseInt(slider.value) + delta;
+      if (val < 0) val = 0;
+      if (val > 100) val = 100;
+      slider.value = val;
+      updateSimulatorLive();
+    }
+
+    // Handle inline update of Minimum Stock Value in table
+    function handleThresholdChange(sku, newThresholdVal) {
+      let parsed = parseInt(newThresholdVal);
+      if (isNaN(parsed) || parsed < 0) {
+        parsed = 0;
+      }
+      const item = inventory.find(i => i.id === sku);
+      if (!item) return;
+
+      const oldThreshold = item.threshold;
+      item.threshold = parsed;
+      const ts = getFormattedTimestamp();
+
+      if (item.stock < item.threshold && item.stock >= oldThreshold) {
+        totalReordersCount++;
+        const emailRecord = dispatchEmailAlert(item, item.stock, item.threshold, ts);
+        logEvent(
+          "ALERT_MAIL_DISPATCHED",
+          `Min stock threshold for <b>${item.name}</b> increased to ${parsed}. Stock (${item.stock}) &lt; Threshold. <b>Email alert dispatched to ${managerEmail}</b> and reorder triggered.`,
+          "CRITICAL",
+          ts,
+          emailRecord.id
+        );
+      } else {
+        logEvent(
+          "MIN_STOCK_UPDATED",
+          `Min stock value for <b>${item.name}</b> (${item.id}) updated: ${oldThreshold} &rarr; <b>${parsed}</b>.`,
+          "INFO",
+          ts
+        );
+      }
+
+      persistState();
+      renderInventoryTable();
+      populateItemSelect();
+      if (selectedSku === sku) syncSimulatorWithItem();
+      updateMetrics();
+    }
+
+    // Execute Agent Decision (Manual button)
+    function executeAgentCycle() {
+      const item = inventory.find(i => i.id === selectedSku);
+      if (!item) return;
+
+      const currentStock = parseInt(document.getElementById("simStockSlider").value);
+      const currentThreshold = parseInt(document.getElementById("simThresholdSlider").value);
+
+      item.stock = currentStock;
+      item.threshold = currentThreshold;
+
+      const evalResult = agentEvaluate(item.stock, item.threshold);
+      const ts = getFormattedTimestamp();
+
+      if (evalResult.isReorder) {
+        totalReordersCount++;
+        const emailRecord = dispatchEmailAlert(item, item.stock, item.threshold, ts);
+        logEvent(
+          "ALERT_MAIL_DISPATCHED",
+          `Autonomous Reorder &amp; Email dispatched for <b>${item.name}</b> (${item.id}). Stock: ${item.stock} &lt; Min: ${item.threshold}. Email sent to <u>${managerEmail}</u>.`,
+          "CRITICAL",
+          ts,
+          emailRecord.id
+        );
+      } else {
+        logEvent(
+          "CHECK_COMPLETED",
+          `Inventory check for <b>${item.name}</b> (${item.id}): Stock is ${item.stock} (Min Stock: ${item.threshold}). Status: WAIT (No email needed).`,
+          "NORMAL",
+          ts
+        );
+      }
+
+      persistState();
+      renderInventoryTable();
+      populateItemSelect();
+      updateMetrics();
+    }
+
+    // Render Table with Editable Minimum Stock Column
+    function renderInventoryTable() {
+      const tbody = document.getElementById("inventoryTableBody");
+      tbody.innerHTML = "";
+
+      inventory.forEach(item => {
+        const evalResult = agentEvaluate(item.stock, item.threshold);
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-[var(--content)] transition-colors";
+
+        const statusBadge = evalResult.isReorder
+          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 pulse-badge">REORDER &amp; EMAIL ALERT</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">NORMAL / WAIT</span>`;
+
+        tr.innerHTML = `
+          <td class="py-3 px-3">
+            <div class="font-bold text-[var(--foreground)]">${item.name}</div>
+            <div class="text-[10px] text-[var(--muted-foreground)] font-mono">${item.id}</div>
+          </td>
+          <td class="py-3 px-3 text-[var(--muted-foreground)]">${item.category}</td>
+          <td class="py-3 px-3 text-center font-mono font-bold ${evalResult.isReorder ? 'text-rose-500' : 'text-emerald-500'}">${item.stock}</td>
+          <td class="py-2.5 px-3 text-center bg-amber-500/5 border-x border-amber-500/10">
+            <input 
+              type="number" 
+              min="0" 
+              max="999"
+              value="${item.threshold}" 
+              onchange="handleThresholdChange('${item.id}', this.value)"
+              title="Click to enter new minimum stock value"
+              class="w-16 text-center font-mono font-bold text-xs bg-[var(--background)] border border-amber-500/30 hover:border-amber-500 rounded-lg px-1.5 py-1 text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shadow-xs"
+            />
+          </td>
+          <td class="py-3 px-3 text-center">${statusBadge}</td>
+          <td class="py-3 px-3 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <button onclick="tableAdjustStock('${item.id}', -2)" title="Consume 2" class="px-2 py-1 rounded bg-[var(--content)] hover:bg-[var(--background)] border border-[var(--border)] text-[10px] font-mono">-2</button>
+              <button onclick="tableAdjustStock('${item.id}', 10)" title="Restock 10" class="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 text-[10px] font-mono">+10</button>
+              <button onclick="quickInspect('${item.id}')" title="Inspect in Chamber" class="px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 text-[10px]">Test</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Table quick actions
+    function tableAdjustStock(sku, delta) {
+      const item = inventory.find(i => i.id === sku);
+      if (!item) return;
+      item.stock = Math.max(0, item.stock + delta);
+      const ts = getFormattedTimestamp();
+
+      if (item.stock < item.threshold) {
+        totalReordersCount++;
+        const emailRecord = dispatchEmailAlert(item, item.stock, item.threshold, ts);
+        logEvent(
+          "ALERT_MAIL_DISPATCHED",
+          `Autonomous alert: Stock for <b>${item.name}</b> dropped to ${item.stock} (&lt; Min: ${item.threshold}). <b>Email alert dispatched to ${managerEmail}</b>.`,
+          "CRITICAL",
+          ts,
+          emailRecord.id
+        );
+      }
+
+      persistState();
+      renderInventoryTable();
+      populateItemSelect();
+      if (selectedSku === sku) syncSimulatorWithItem();
+      updateMetrics();
+    }
+
+    function quickInspect(sku) {
+      selectedSku = sku;
+      document.getElementById("simItemSelect").value = sku;
+      syncSimulatorWithItem();
+    }
+
+    // Logging Feed
+    function logEvent(type, message, severity = "NORMAL", customTimestamp = null, emailRefId = null) {
+      const ts = customTimestamp || getFormattedTimestamp();
+      actuatorLogsList.unshift({ type, message, severity, timestamp: ts, emailRefId });
+      if (actuatorLogsList.length > 35) actuatorLogsList.pop();
+      persistState();
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const container = document.getElementById("actuatorLogs");
+      if (actuatorLogsList.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-xs text-[var(--muted-foreground)]">
+            No actuator events recorded yet. Adjust stock or modify minimum stock values.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = actuatorLogsList.map(log => {
+        let borderClass = "border-[var(--border)]";
+        let badgeClass = "bg-blue-500/10 text-blue-500";
+        if (log.severity === "CRITICAL") {
+          borderClass = "border-rose-500/30 bg-rose-500/5";
+          badgeClass = "bg-rose-500/10 text-rose-500 font-bold";
+        } else if (log.severity === "INFO") {
+          borderClass = "border-slate-500/20";
+          badgeClass = "bg-slate-500/10 text-slate-400";
+        }
+
+        const emailBtn = log.emailRefId ? `
+          <button onclick="viewEmailDetails('${log.emailRefId}')" class="mt-1 inline-flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400 hover:underline font-semibold">
+            <span>📧 View Dispatched Email</span> &rarr;
+          </button>
+        ` : '';
+
+        return `
+          <div class="p-2.5 rounded-xl border ${borderClass} text-xs flex flex-col gap-1 transition-all">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="px-2 py-0.5 rounded-full ${badgeClass}">${log.type}</span>
+              <span class="text-[var(--muted-foreground)] font-mono">${log.timestamp}</span>
+            </div>
+            <div class="text-[var(--foreground)] text-xs mt-0.5">${log.message}</div>
+            ${emailBtn}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function clearLogs() {
+      actuatorLogsList = [];
+      persistState();
+      renderLogs();
+    }
+
+    // Metrics Update
+    function updateMetrics() {
+      document.getElementById("metricTotalSKUs").textContent = inventory.length;
+      document.getElementById("metricReordersTriggered").textContent = totalReordersCount;
+      document.getElementById("metricEmailsSent").textContent = totalEmailsSentCount;
+      document.getElementById("outboxCount").textContent = sentEmailsList.length;
+
+      const lowStockCount = inventory.filter(i => i.stock < i.threshold).length;
+      const healthyPct = Math.round(((inventory.length - lowStockCount) / inventory.length) * 100);
+      document.getElementById("metricHealthyPct").textContent = `${healthyPct}%`;
+    }
+
+    // Auto Simulation Loop
+    function toggleAutoSimulation() {
+      const dot = document.getElementById("simDot");
+      const text = document.getElementById("simText");
+
+      if (autoSimInterval) {
+        clearInterval(autoSimInterval);
+        autoSimInterval = null;
+        dot.className = "w-2 h-2 rounded-full bg-slate-400";
+        text.textContent = "Start Auto Warehouse Ticks";
+        logEvent("SIMULATION_PAUSED", "Automated warehouse activity simulation stopped.", "INFO");
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-ping";
+        text.textContent = "Pause Auto Ticks";
+        logEvent("SIMULATION_STARTED", "Warehouse stock fluctuation and automated alert loop running.", "INFO");
+
+        autoSimInterval = setInterval(() => {
+          const randomIndex = Math.floor(Math.random() * inventory.length);
+          const item = inventory[randomIndex];
+          const consumption = Math.floor(Math.random() * 4) + 1;
+          
+          item.stock = Math.max(0, item.stock - consumption);
+          const ts = getFormattedTimestamp();
+
+          if (item.stock < item.threshold) {
+            totalReordersCount++;
+            const emailRecord = dispatchEmailAlert(item, item.stock, item.threshold, ts);
+            const reorderQty = Math.max(item.threshold * 2 - item.stock, 15);
+            
+            logEvent(
+              "AUTONOMOUS_ACTUATION",
+              `[Heartbeat Sensor] Stock for <b>${item.name}</b> dropped to ${item.stock} (&lt; Min: ${item.threshold}). <b>Email alert dispatched to ${managerEmail}</b> and supplier reorder batch +${reorderQty} initiated.`,
+              "CRITICAL",
+              ts,
+              emailRecord.id
+            );
+
+            setTimeout(() => {
+              item.stock += reorderQty;
+              logEvent(
+                "DELIVERY_RECEIVED",
+                `Restock shipment received for <b>${item.name}</b> (+${reorderQty} units). New Stock: ${item.stock}. Buffer restored.`,
+                "NORMAL"
+              );
+              persistState();
+              renderInventoryTable();
+              updateMetrics();
+              if (selectedSku === item.id) syncSimulatorWithItem();
+            }, 4000);
+          }
+
+          persistState();
+          renderInventoryTable();
+          updateMetrics();
+          if (selectedSku === item.id) syncSimulatorWithItem();
+        }, 3000);
+      }
+    }
+
+    // Email Settings Modal
+    function openEmailSettingsModal() {
+      document.getElementById("settingManagerEmail").value = managerEmail;
+      document.getElementById("emailSettingsModal").classList.remove("hidden");
+    }
+    function closeEmailSettingsModal() {
+      document.getElementById("emailSettingsModal").classList.add("hidden");
+    }
+    function saveEmailSettings() {
+      const email = document.getElementById("settingManagerEmail").value.trim();
+      if (!email || !email.includes("@")) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+      managerEmail = email;
+      persistState();
+      initUI();
+      closeEmailSettingsModal();
+      logEvent("EMAIL_CONFIG_UPDATED", `Manager notification email address set to <b>${managerEmail}</b>.`, "INFO");
+    }
+
+    // Email Viewer Modal
+    function viewEmailDetails(emailId) {
+      const email = sentEmailsList.find(e => e.id === emailId);
+      if (!email) return;
+
+      document.getElementById("viewerEmailDate").textContent = email.timestamp;
+      document.getElementById("viewerEmailTo").textContent = email.to;
+      document.getElementById("viewerEmailSubject").textContent = email.subject;
+      document.getElementById("viewerEmailBody").textContent = email.body;
+
+      document.getElementById("emailViewerModal").classList.remove("hidden");
+    }
+    function closeEmailViewerModal() {
+      document.getElementById("emailViewerModal").classList.add("hidden");
+    }
+
+    // Email Outbox Modal
+    function openEmailOutboxModal() {
+      const container = document.getElementById("outboxListContainer");
+      if (sentEmailsList.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-xs text-[var(--muted-foreground)]">No email alerts sent yet. Alerts are sent when stock &lt; minimum threshold.</div>`;
+      } else {
+        container.innerHTML = sentEmailsList.map(email => `
+          <div class="p-3 rounded-xl border border-[var(--border)] bg-[var(--background)] hover:border-purple-500/40 transition-all text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-[var(--foreground)]">${email.subject}</span>
+              <span class="text-[10px] text-[var(--muted-foreground)] font-mono">${email.timestamp}</span>
+            </div>
+            <div class="text-[11px] text-[var(--muted-foreground)]">Recipient: <span class="font-mono text-purple-500">${email.to}</span></div>
+            <button onclick="viewEmailDetails('${email.id}')" class="text-[10px] text-blue-500 hover:underline font-semibold mt-1">Open Full Message &rarr;</button>
+          </div>
+        `).join("");
+      }
+      document.getElementById("emailOutboxModal").classList.remove("hidden");
+    }
+    function closeEmailOutboxModal() {
+      document.getElementById("emailOutboxModal").classList.add("hidden");
+    }
+
+    // Add Item Modal
+    function openAddItemModal() {
+      document.getElementById("addItemModal").classList.remove("hidden");
+    }
+    function closeAddItemModal() {
+      document.getElementById("addItemModal").classList.add("hidden");
+    }
+    function confirmAddItem() {
+      const name = document.getElementById("newItemName").value.trim();
+      const category = document.getElementById("newItemCategory").value.trim() || "General";
+      const stock = parseInt(document.getElementById("newItemStock").value) || 0;
+      const threshold = parseInt(document.getElementById("newItemThreshold").value) || 20;
+
+      if (!name) {
+        alert("Please enter a valid item name.");
+        return;
+      }
+
+      const newId = `SKU-${100 + inventory.length + 1}`;
+      inventory.push({ id: newId, name, category, stock, threshold });
+      persistState();
+      initUI();
+      closeAddItemModal();
+      logEvent("SKU_ADDED", `New SKU registered: <b>${name}</b> (${newId}) with stock ${stock} and minimum stock threshold ${threshold}.`, "INFO");
+
+      document.getElementById("newItemName").value = "";
+    }
+
+    // Startup
+    window.addEventListener("DOMContentLoaded", () => {
+      initUI();
+      if (actuatorLogsList.length === 0) {
+        logEvent("AGENT_INITIALIZED", "Inventory Management Agent initialized with automated email notification actuators.", "INFO");
+      }
+    });
+  </script>
+</body>
+</html>
